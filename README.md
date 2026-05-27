@@ -39,7 +39,7 @@ python3 demo.py
 ```
 
 That's it. The
-[`doltlite`](https://github.com/timsehn/doltlite-python) package
+[`doltlite`](https://github.com/dolthub/doltlite-python) package
 bundles libdoltlite and handles loading it ahead of the system SQLite,
 so SQLAlchemy's stock `sqlite` dialect transparently picks up Dolt
 features.
@@ -63,7 +63,7 @@ You can set `DOLTLITE_DB` to control where the demo database is written
 - Importing `doltlite` re-execs the interpreter on macOS (and on Linux
   when `sqlite3` was already loaded) — so it has to be invoked from a
   script file, not `python -c "..."` or an interactive REPL. See the
-  [doltlite-python README](https://github.com/timsehn/doltlite-python)
+  [doltlite-python README](https://github.com/dolthub/doltlite-python)
   for the workaround in those cases.
 
 ## Adaptations from the Dolt MySQL demo
