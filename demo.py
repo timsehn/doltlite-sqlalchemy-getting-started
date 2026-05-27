@@ -12,100 +12,14 @@ call dolt_* operations as SQL functions / virtual tables.
 
 Usage:
     pip install -r requirements.txt
-    DOLTLITE_LIB=/path/to/libdoltlite.{dylib,so} python3 demo.py
-
-The first invocation re-execs the interpreter with the right preload set
-up; you should not need to touch DYLD_INSERT_LIBRARIES / LD_PRELOAD
-yourself. See README.md for the Python interpreter caveat
-(no python-build-standalone).
+    python3 demo.py
 """
+import doltlite  # bootstraps libdoltlite into the active sqlite3 module
 import datetime
 import os
-import shutil
-import subprocess
-import sys
-import tempfile
 from pprint import pprint
 
-
-_BOOTSTRAP_MARKER = "_DOLTLITE_DEMO_BOOTSTRAPPED"
-
-
-def _bootstrap_doltlite():
-    """Re-exec the interpreter with the right loader env so that the
-    standard sqlite3 module resolves to libdoltlite instead of the
-    system SQLite. Returns only inside the re-exec'd process."""
-    if os.environ.get(_BOOTSTRAP_MARKER) == "1":
-        return
-
-    lib = os.environ.get("DOLTLITE_LIB")
-    if not lib:
-        sys.exit(
-            "DOLTLITE_LIB is not set.\n"
-            "Build doltlite (https://github.com/dolthub/doltlite) and run:\n"
-            "    DOLTLITE_LIB=/path/to/libdoltlite.dylib python3 demo.py   "
-            "(macOS)\n"
-            "    DOLTLITE_LIB=/path/to/libdoltlite.so    python3 demo.py   "
-            "(Linux)"
-        )
-    if not os.path.exists(lib):
-        sys.exit(f"DOLTLITE_LIB points to a missing file: {lib}")
-
-    env = dict(os.environ)
-    env[_BOOTSTRAP_MARKER] = "1"
-
-    if sys.platform == "darwin":
-        env["DYLD_INSERT_LIBRARIES"] = _build_macos_shim(lib)
-    else:
-        existing = env.get("LD_PRELOAD", "").strip()
-        env["LD_PRELOAD"] = f"{lib} {existing}".strip()
-
-    os.execvpe(sys.executable, [sys.executable, *sys.argv], env)
-
-
-def _build_macos_shim(lib):
-    """macOS's two-level namespace binds _sqlite3 to libsqlite3.dylib by
-    absolute path. To override it we need a libsqlite3.dylib whose
-    install_name (LC_ID_DYLIB) matches that path. Copy libdoltlite and
-    rewrite its install_name; cache the shim per (lib path, mtime, target
-    install_name) so we don't rebuild on every run."""
-    import _sqlite3
-
-    otool = subprocess.run(
-        ["otool", "-L", _sqlite3.__file__],
-        check=True, capture_output=True, text=True,
-    ).stdout
-    install_name = None
-    for line in otool.splitlines():
-        token = line.strip().split(" ", 1)[0]
-        if "/libsqlite3" in token and token.endswith(".dylib"):
-            install_name = token
-            break
-    if install_name is None:
-        sys.exit(
-            "Could not detect libsqlite3 dependency of Python's _sqlite3. "
-            "Run otool -L on _sqlite3.*.so and report the output."
-        )
-
-    src_stat = os.stat(lib)
-    key = f"{abs(hash((lib, src_stat.st_mtime_ns, install_name))):016x}"
-    cache_dir = os.path.join(tempfile.gettempdir(), f"doltlite-shim-{key}")
-    shim = os.path.join(cache_dir, "libsqlite3.dylib")
-    if not os.path.exists(shim):
-        os.makedirs(cache_dir, exist_ok=True)
-        shutil.copyfile(lib, shim)
-        subprocess.run(
-            ["install_name_tool", "-id", install_name, shim], check=True,
-        )
-    return shim
-
-
-_bootstrap_doltlite()
-
-# Imports below this line load _sqlite3 — must come after the bootstrap.
-import sqlite3  # noqa: E402, F401
-
-from sqlalchemy import (  # noqa: E402
+from sqlalchemy import (
     Column,
     Date,
     ForeignKey,
@@ -120,13 +34,13 @@ from sqlalchemy import (  # noqa: E402
     text,
     update,
 )
-from sqlalchemy.orm import (  # noqa: E402
+from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     Session,
     mapped_column,
 )
-from sqlalchemy.pool import StaticPool  # noqa: E402
+from sqlalchemy.pool import StaticPool
 
 
 DB_PATH = os.environ.get("DOLTLITE_DB", "sqlalchemy_demo.db")
