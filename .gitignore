@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Demo database files
+sqlalchemy_demo.db
+sqlalchemy_demo.db-wal
+sqlalchemy_demo.db-shm
+sqlalchemy_demo.db-journal
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+.DS_Store
